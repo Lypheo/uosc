@@ -829,7 +829,7 @@ bind_command('keybinds', function()
 	end
 end)
 bind_command('load-subtitles', create_track_loader_menu_opener({
-	name = 'subtitles', prop = 'sub', allowed_types = itable_join(config.types.video, config.types.subtitle),
+	name = 'subtitles', prop = 'sub', allowed_types = config.types.subtitle,
 }))
 bind_command('load-audio', create_track_loader_menu_opener({
 	name = 'audio', prop = 'audio', allowed_types = itable_join(config.types.video, config.types.audio),
