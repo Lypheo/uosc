@@ -831,6 +831,9 @@ end)
 bind_command('load-subtitles', create_track_loader_menu_opener({
 	name = 'subtitles', prop = 'sub', allowed_types = config.types.subtitle,
 }))
+bind_command('load-toptitles', create_track_loader_menu_opener({
+	name = 'toptitles', prop = 'sub', allowed_types = config.types.subtitle,
+}))
 bind_command('load-audio', create_track_loader_menu_opener({
 	name = 'audio', prop = 'audio', allowed_types = itable_join(config.types.video, config.types.audio),
 }))
@@ -839,6 +842,9 @@ bind_command('load-video', create_track_loader_menu_opener({
 }))
 bind_command('subtitles', create_select_tracklist_type_menu_opener(
 	t('Subtitles'), 'sub', 'sid', 'script-binding uosc/load-subtitles'
+))
+bind_command('toptitles', create_select_tracklist_type_menu_opener(
+	t('Toptitles'), 'secondary_sub', 'secondary-sid', 'script-binding uosc/load-toptitles'
 ))
 bind_command('audio', create_select_tracklist_type_menu_opener(
 	t('Audio'), 'audio', 'aid', 'script-binding uosc/load-audio'

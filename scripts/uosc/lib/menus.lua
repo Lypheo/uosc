@@ -86,6 +86,8 @@ function create_self_updating_menu_opener(options)
 end
 
 function create_select_tracklist_type_menu_opener(menu_title, track_type, track_prop, load_command)
+	local sec = track_type == "secondary_sub"
+	if sec then track_type = "sub" end
 	local function serialize_tracklist(tracklist)
 		local items = {}
 
@@ -155,7 +157,8 @@ function create_select_tracklist_type_menu_opener(menu_title, track_type, track_
 
 			-- If subtitle track was selected, assume user also wants to see it
 			if value and track_type == 'sub' then
-				mp.commandv('set', 'sub-visibility', 'yes')
+				local prop = sec and 'secondary-sub-visibility' or 'sub-visibility'
+				mp.commandv('set', prop, 'yes')
 			end
 		end
 	end
@@ -521,6 +524,7 @@ function create_track_loader_menu_opener(opts)
 	local menu_type = 'load-' .. opts.name
 	local title = ({
 		subtitles = t('Load subtitles'),
+		toptitles = t('Load toptitles'),
 		audio = t('Load audio'),
 		video = t('Load video'),
 	})[opts.name]
@@ -545,7 +549,18 @@ function create_track_loader_menu_opener(opts)
 		end
 		open_file_navigation_menu(
 			path,
-			function(path) mp.commandv(opts.prop .. '-add', path) end,
+			function(path) 
+				if opts.name == "toptitles" then
+					mp.commandv(opts.prop .. '-add', path, "auto")
+					for index, track in ipairs(mp.get_property_native('track-list')) do
+					    if track.type == "sub" and track.external and track["external-filename"] == path then
+							mp.commandv('set', "secondary-sid", track.id)        
+					    end
+					end
+				else
+					mp.commandv(opts.prop .. '-add', path)
+				end
+			end,
 			{type = menu_type, title = title, allowed_types = opts.allowed_types}
 		)
 	end
