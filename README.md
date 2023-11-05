@@ -15,8 +15,9 @@ Features:
 -   Configurable controls bar.
 -   Fast and efficient thumbnails with [thumbfast](https://github.com/po5/thumbfast) integration.
 -   UIs for:
-    -   Loading external subtitles.
     -   Selecting subtitle/audio/video track.
+    -   Downloading subtitles from Open Subtitles.
+    -   Loading external subtitles.
     -   Selecting stream quality.
     -   Quick directory and playlist navigation.
 -   All menus are instantly searchable. Just start typing.
@@ -217,6 +218,16 @@ Menus to select a track of a requested type.
 Displays a file explorer with directory navigation to load a requested track type.
 
 For subtitles, the explorer only displays file types defined in `subtitle_types` option. For audio and video, the ones defined in `video_types` and `audio_types` are displayed.
+
+#### `download-subtitles`
+
+A menu to search and download subtitles from [Open Subtitles](https://www.opensubtitles.com). It can also be opened by selecting the **Download** option in `subtitles` menu.
+
+We hash the current file and send the hash to Open Subtitles so you can search even with empty query and if your file is known, you'll get subtitles exactly for it.
+
+Subtitles will be downloaded to the same directory as currently opened file, or `~~/subtitles` (folder in your mpv config directory) if playing a URL.
+
+Current Open Subtitles limit for unauthenticated requests is **5 download per day**, but searching is unlimited. Authentication raises downloads to 10, which doesn't feel like it's wroth the effort of implementing it, so currently there's no way to authenticate.
 
 #### `playlist`
 
@@ -473,8 +484,9 @@ Menu {
   keep_open?: boolean;
   on_close?: string | string[];
   on_search?: string | string[];
-  palette?: boolean;
-  search_debounce?: 'submit' | number;
+  on_paste?: string | string[];
+  search_style?: 'on_demand' | 'palette' | 'disabled'; // default: on_demand
+  search_debounce?: 'submit' | number; // default: 0
   search_suggestion?: string;
   search_submenus?: boolean;
 }
@@ -492,8 +504,9 @@ Submenu {
   separator?: boolean;
   keep_open?: boolean;
   on_search?: string | string[];
-  palette?: boolean;
-  search_debounce?: 'submit' | number;
+  on_paste?: string | string[];
+  search_style?: 'on_demand' | 'palette' | 'disabled'; // default: on_demand
+  search_debounce?: 'submit' | number; // default: 0
   search_suggestion?: string;
   search_submenus?: boolean;
 }
@@ -519,7 +532,10 @@ When `Command.value` is a string, it'll be passed to `mp.command(value)`. If it'
 `Menu.type` is used to refer to this menu in `update-menu` and `close-menu`.
 While the menu is open this value will be available in `user-data/uosc/menu/type` and the `shared-script-properties` entry `uosc-menu-type`. If no type was provided, those will be set to `'undefined'`.
 
-`palette` specifies that this menu's primarily mode of interaction is through a search input. When enabled, search input will be visible at all times (doesn't have to be enabled and can't be disabled), and `title` will be used as input placeholder while search query is empty.
+`search_style` can be:
+- `on_demand` (_default_) - Search input pops up when user starts typing, or presses `/` or `ctrl+f`, depending on user configuration. It disappears on `shift+backspace`, or when input text is cleared.
+- `palette` - Search input is always visible and can't be disabled. In this mode, menu `title` is used as input placeholder when no text has been entered yet.
+- `disabled` - Menu can't be searched.
 
 `search_debounce` controls how soon the search happens after the last character was entered in milliseconds. Entering new character resets the timer. Defaults to `300`. It can also have a special value `'submit'`, which triggers a search only after `ctrl+enter` was pressed.
 
@@ -529,6 +545,8 @@ While the menu is open this value will be available in `user-data/uosc/menu/type
 
 `item.icon` property accepts icon names. You can pick one from here: [Google Material Icons](https://fonts.google.com/icons?icon.platform=web&icon.set=Material+Icons&icon.style=Rounded)\
 There is also a special icon name `spinner` which will display a rotating spinner. Along with a no-op command on an item and `keep_open=true`, this can be used to display placeholder menus/items that are still loading.
+
+`on_paste` is triggered when user pastes a string while menu is opened. Works the same as `on_search`.
 
 When `keep_open` is `true`, activating the item will not close the menu. This property can be defined on both menus and items, and is inherited from parent to child if child doesn't overwrite it.
 
@@ -692,6 +710,44 @@ mp.commandv('script-message-to', 'uosc', 'disable-elements', mp.get_script_name(
 
 Using `'user'` as `script_id` will overwrite user's `disable_elements` config. Elements will be enabled only when neither user, nor any script requested them to be disabled.
 
-## Why _uosc_?
+## Contributing
+
+### Setup
+
+If you want to test or work on something that involves ziggy (our multitool binary, currently handles searching & downloading subtitles), you first need to build it with:
+
+```
+tools/build ziggy
+```
+
+This requires [`go`](https://go.dev/dl/) to be installed and in path. If you don't want to bother with installing go, and there were no changes to ziggy, you can just use the binaries from [latest release](https://github.com/tomasklaen/uosc/releases/latest/download/uosc.zip). Place folder `scripts/uosc/bin` from `uosc.zip` into `src/uosc/bin`.
+
+### Localization
+
+If you want to help localizing uosc by either adding a new locale or fixing one that is not up to date, start by running this while in the repository root:
+
+```
+tools/intl languagecode
+```
+
+`languagecode` can be any existing locale in `src/uosc/intl/` directory, or any [IETF language tag](https://en.wikipedia.org/wiki/IETF_language_tag). If it doesn't exist yet, the `intl` tool will create it.
+
+This will parse the codebase for localization strings and use them to either update existing locale by removing unused and setting untranslated strings to `null`, or create a new one with all `null` strings.
+
+You can then navigate to `src/uosc/intl/languagecode.json` and start translating.
+
+## FAQ
+
+#### Why is the release zip size in megabytes? Isn't this just a lua script?
+
+We are limited in what we can do in mpv's lua scripting environment. To work around this, we include a binary tool (one for each platform), that we call to handle stuff we can't do in lua. Currently this means searching & downloading subtitles, accessing clipboard data, and in future might improve self updating, and potentially other things.
+
+Other scripts usually choose to go the route of adding python scripts and requiring users to install the runtime. I don't like this as I want the installation process to be as seamless and as painless as possible. I also don't want to contribute to potential python version mismatch issues, because one tool depends on 2.7, other latest 3, and this one 3.9 only and no newer (real world scenario that happened to me), now have fun reconciling this. Depending on external runtimes can be a mess, and shipping a stable, tiny, and fast binary that users don't even have to know about is imo more preferable than having unstable external dependencies and additional installation steps that force everyone to install and manage hundreds of megabytes big runtimes in global `PATH`.
+
+#### Why don't you have `uosc-{platform}.zip` releases and only include binaries for the concerned platform in each?
+
+Then you wouldn't be able to sync your mpv config between platforms and everything _just work_. And the binaries are small, this is not a problem.
+
+#### Why _uosc_?
 
 It stood for micro osc as it used to render just a couple rectangles before it grew to what it is today. And now it means a minimalist UI design direction where everything is out of your way until needed.
